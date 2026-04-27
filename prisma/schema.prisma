@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  password      String
+  role          Role      @default(USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Department {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  description String?
+  employees   Employee[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Designation {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  description String?
+  employees   Employee[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Employee {
+  id            String       @id @default(cuid())
+  employeeId    String       @unique
+  firstName     String
+  lastName      String
+  email         String       @unique
+  phone         String?
+  dateOfBirth   DateTime?
+  gender        Gender?
+  address       String?
+  city          String?
+  state         String?
+  country       String?
+  zipCode       String?
+  joiningDate   DateTime
+  status        EmployeeStatus @default(ACTIVE)
+  salary        Decimal?     @db.Decimal(15, 2)
+  departmentId  String?
+  department    Department?  @relation(fields: [departmentId], references: [id])
+  designationId String?
+  designation   Designation? @relation(fields: [designationId], references: [id])
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([departmentId])
+  @@index([designationId])
+}
+
+model CompanyProfile {
+  id            String   @id @default(cuid())
+  companyName   String
+  address       String?
+  phone         String?
+  email         String?
+  website       String?
+  logo          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+  TERMINATED
+  ON_LEAVE
+}
