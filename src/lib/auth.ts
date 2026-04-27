@@ -1,6 +1,6 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
-import { compare } from "bcryptjs"
+import { compare, hash } from "bcryptjs"
 import { prisma } from "./db.server"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -16,29 +16,84 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     return null
                 }
 
+                // First try to find in User table (Admin, HR, Manager, etc.)
                 const user = await prisma.user.findUnique({
                     where: { email: credentials.email as string }
                 })
 
-                if (!user) {
-                    return null
+                if (user) {
+                    const isPasswordValid = await compare(
+                        credentials.password as string,
+                        user.password
+                    )
+
+                    if (!isPasswordValid) {
+                        return null
+                    }
+
+                    return {
+                        id: user.id,
+                        email: user.email,
+                        name: user.name,
+                        role: user.role
+                    }
                 }
 
-                const isPasswordValid = await compare(
-                    credentials.password as string,
-                    user.password
-                )
+                // If not found in User table, check Employee table
+                // Employees can login using their email and employeeId as password
+                const employee = await prisma.employee.findUnique({
+                    where: { email: credentials.email as string }
+                })
 
-                if (!isPasswordValid) {
-                    return null
+                if (employee) {
+                    // For employees, password can be their employeeId or a set password
+                    // Check if there's a linked user account
+                    const linkedUser = await prisma.user.findFirst({
+                        where: { employeeId: employee.id }
+                    })
+
+                    if (linkedUser) {
+                        const isPasswordValid = await compare(
+                            credentials.password as string,
+                            linkedUser.password
+                        )
+
+                        if (!isPasswordValid) {
+                            return null
+                        }
+
+                        return {
+                            id: linkedUser.id,
+                            email: linkedUser.email,
+                            name: linkedUser.name,
+                            role: linkedUser.role
+                        }
+                    }
+
+                    // If no linked user, allow login with employeeId as password (first time)
+                    if (credentials.password === employee.employeeId) {
+                        // Create a user account for this employee
+                        const hashedPassword = await hash(employee.employeeId, 10)
+                        const newUser = await prisma.user.create({
+                            data: {
+                                email: employee.email,
+                                name: `${employee.firstName} ${employee.lastName}`,
+                                password: hashedPassword,
+                                role: "USER",
+                                employeeId: employee.id
+                            }
+                        })
+
+                        return {
+                            id: newUser.id,
+                            email: newUser.email,
+                            name: newUser.name,
+                            role: newUser.role
+                        }
+                    }
                 }
 
-                return {
-                    id: user.id,
-                    email: user.email,
-                    name: user.name,
-                    role: user.role
-                }
+                return null
             }
         })
     ],
@@ -46,14 +101,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         async jwt({ token, user }) {
             if (user) {
                 token.role = user.role
-                token.id = user.id
+                token.id = user.id as string
             }
             return token
         },
         async session({ session, token }) {
             if (session.user) {
-                session.user.role = token.role as string
-                session.user.id = token.id as string
+                if (token.role) {
+                    session.user.role = token.role as string
+                }
+                if (token.id) {
+                    session.user.id = token.id as string
+                }
             }
             return session
         }

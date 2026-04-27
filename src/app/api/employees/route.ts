@@ -65,12 +65,50 @@ export async function POST(req: Request) {
             phone,
             dateOfBirth,
             gender,
+            nationality,
+            maritalStatus,
             address,
             city,
             state,
             country,
             zipCode,
+            // UAE Specific
+            emiratesId,
+            emiratesIdExpiry,
+            passportNumber,
+            passportExpiry,
+            passportCountry,
+            visaStatus,
+            visaType,
+            visaNumber,
+            visaIssueDate,
+            visaExpiryDate,
+            laborCardNumber,
+            laborCardExpiry,
+            // Employment
             joiningDate,
+            probationEndDate,
+            contractType,
+            contractEndDate,
+            noticePeriodDays,
+            // Bank Details
+            bankName,
+            bankBranch,
+            accountNumber,
+            iban,
+            routingCode,
+            // Emergency Contact
+            emergencyName,
+            emergencyRelation,
+            emergencyPhone,
+            // Salary Structure
+            basicSalary,
+            housingAllowance,
+            transportAllowance,
+            foodAllowance,
+            phoneAllowance,
+            otherAllowance,
+            // Legacy
             salary,
             departmentId,
             designationId
@@ -83,6 +121,14 @@ export async function POST(req: Request) {
             )
         }
 
+        // Calculate total salary
+        const totalSalary = (Number(basicSalary) || 0) +
+            (Number(housingAllowance) || 0) +
+            (Number(transportAllowance) || 0) +
+            (Number(foodAllowance) || 0) +
+            (Number(phoneAllowance) || 0) +
+            (Number(otherAllowance) || 0)
+
         const employee = await prisma.employee.create({
             data: {
                 employeeId,
@@ -92,13 +138,51 @@ export async function POST(req: Request) {
                 phone,
                 dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
                 gender,
+                nationality,
+                maritalStatus,
                 address,
                 city,
                 state,
                 country,
                 zipCode,
+                // UAE Specific
+                emiratesId,
+                emiratesIdExpiry: emiratesIdExpiry ? new Date(emiratesIdExpiry) : null,
+                passportNumber,
+                passportExpiry: passportExpiry ? new Date(passportExpiry) : null,
+                passportCountry,
+                visaStatus,
+                visaType,
+                visaNumber,
+                visaIssueDate: visaIssueDate ? new Date(visaIssueDate) : null,
+                visaExpiryDate: visaExpiryDate ? new Date(visaExpiryDate) : null,
+                laborCardNumber,
+                laborCardExpiry: laborCardExpiry ? new Date(laborCardExpiry) : null,
+                // Employment
                 joiningDate: new Date(joiningDate),
-                salary: salary || null,
+                probationEndDate: probationEndDate ? new Date(probationEndDate) : null,
+                contractType: contractType || "LIMITED",
+                contractEndDate: contractEndDate ? new Date(contractEndDate) : null,
+                noticePeriodDays: noticePeriodDays || 30,
+                // Bank Details
+                bankName,
+                bankBranch,
+                accountNumber,
+                iban,
+                routingCode,
+                // Emergency Contact
+                emergencyName,
+                emergencyRelation,
+                emergencyPhone,
+                // Salary Structure
+                basicSalary: basicSalary || null,
+                housingAllowance: housingAllowance || null,
+                transportAllowance: transportAllowance || null,
+                foodAllowance: foodAllowance || null,
+                phoneAllowance: phoneAllowance || null,
+                otherAllowance: otherAllowance || null,
+                totalSalary: totalSalary || null,
+                salary: salary || totalSalary || null,
                 departmentId: departmentId || null,
                 designationId: designationId || null
             },

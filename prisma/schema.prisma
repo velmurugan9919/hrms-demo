@@ -13,8 +13,32 @@ model User {
   email         String    @unique
   password      String
   role          Role      @default(USER)
+  isSystem      Boolean   @default(false)  // Hidden from user lists (super admin, dev accounts)
+  isActive      Boolean   @default(true)
+  employeeId    String?   @unique
+  employee      Employee? @relation(fields: [employeeId], references: [id])
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+
+  @@index([isSystem])
+}
+
+model Branch {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  code        String      @unique  // e.g., "UAE-DXB", "IND-BLR"
+  country     CountryCode
+  currency    Currency
+  address     String?
+  city        String?
+  state       String?
+  phone       String?
+  email       String?
+  isActive    Boolean     @default(true)
+  employees   Employee[]
+  leavePolicy LeavePolicy[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 }
 
 model Department {
@@ -36,48 +60,485 @@ model Designation {
 }
 
 model Employee {
-  id            String       @id @default(cuid())
-  employeeId    String       @unique
-  firstName     String
-  lastName      String
-  email         String       @unique
-  phone         String?
-  dateOfBirth   DateTime?
-  gender        Gender?
-  address       String?
-  city          String?
-  state         String?
-  country       String?
-  zipCode       String?
-  joiningDate   DateTime
-  status        EmployeeStatus @default(ACTIVE)
-  salary        Decimal?     @db.Decimal(15, 2)
-  departmentId  String?
-  department    Department?  @relation(fields: [departmentId], references: [id])
-  designationId String?
-  designation   Designation? @relation(fields: [designationId], references: [id])
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  id                String             @id @default(cuid())
+  employeeId        String             @unique
+  firstName         String
+  lastName          String
+  email             String             @unique
+  phone             String?
+  dateOfBirth       DateTime?
+  gender            Gender?
+  nationality       String?
+  religion          String?
+  maritalStatus     MaritalStatus?
 
+  // Address
+  address           String?
+  city              String?
+  state             String?
+  country           String?
+  zipCode           String?
+
+  // UAE Specific - Emirates ID & Passport
+  emiratesId        String?
+  emiratesIdExpiry  DateTime?
+  passportNumber    String?
+  passportExpiry    DateTime?
+  passportCountry   String?
+
+  // Visa Details
+  visaStatus        VisaStatus?
+  visaType          String?
+  visaNumber        String?
+  visaIssueDate     DateTime?
+  visaExpiryDate    DateTime?
+  laborCardNumber   String?
+  laborCardExpiry   DateTime?
+
+  // Employment Details
+  joiningDate       DateTime
+  probationEndDate  DateTime?
+  confirmationDate  DateTime?
+  contractType      ContractType       @default(LIMITED)
+  contractEndDate   DateTime?
+  noticePeriodDays  Int                @default(30)
+  status            EmployeeStatus     @default(ACTIVE)
+  onboardingStatus  OnboardingStatus   @default(PENDING)
+
+  // Bank Details (for WPS)
+  bankName          String?
+  bankBranch        String?
+  accountNumber     String?
+  iban              String?
+  routingCode       String?
+
+  // Emergency Contact
+  emergencyName     String?
+  emergencyRelation String?
+  emergencyPhone    String?
+
+  // Branch/Location
+  branchId          String?
+  branch            Branch?            @relation(fields: [branchId], references: [id])
+
+  // Salary Structure (Common)
+  basicSalary       Decimal?           @db.Decimal(15, 2)
+  totalSalary       Decimal?           @db.Decimal(15, 2)
+
+  // UAE Allowances
+  housingAllowance  Decimal?           @db.Decimal(15, 2)
+  transportAllowance Decimal?          @db.Decimal(15, 2)
+  foodAllowance     Decimal?           @db.Decimal(15, 2)
+  phoneAllowance    Decimal?           @db.Decimal(15, 2)
+  otherAllowance    Decimal?           @db.Decimal(15, 2)
+
+  // India Allowances
+  hra               Decimal?           @db.Decimal(15, 2)  // House Rent Allowance
+  conveyanceAllowance Decimal?         @db.Decimal(15, 2)
+  medicalAllowance  Decimal?           @db.Decimal(15, 2)
+  specialAllowance  Decimal?           @db.Decimal(15, 2)
+  lta               Decimal?           @db.Decimal(15, 2)  // Leave Travel Allowance
+
+  // India Statutory (Employee contributions)
+  pfNumber          String?            // PF Account Number
+  esiNumber         String?            // ESI Number
+  uanNumber         String?            // Universal Account Number
+  panNumber         String?            // PAN Card Number
+  aadharNumber      String?            // Aadhar Number
+
+  // Legacy field for backward compatibility
+  salary            Decimal?           @db.Decimal(15, 2)
+
+  // Termination/Exit Details
+  terminationDate   DateTime?
+  terminationType   TerminationType?
+  terminationReason String?
+  lastWorkingDate   DateTime?
+  exitInterviewDone Boolean            @default(false)
+
+  // Relations
+  departmentId      String?
+  department        Department?        @relation(fields: [departmentId], references: [id])
+  designationId     String?
+  designation       Designation?       @relation(fields: [designationId], references: [id])
+  attendances       Attendance[]
+  leaveRequests     LeaveRequest[]
+  leaveBalances     LeaveBalance[]
+  documents         EmployeeDocument[]
+  payslips          Payslip[]
+  settlements       FinalSettlement[]
+  user              User?
+
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([branchId])
   @@index([departmentId])
   @@index([designationId])
+  @@index([status])
+  @@index([visaExpiryDate])
+  @@index([emiratesIdExpiry])
+}
+
+model Attendance {
+  id          String           @id @default(cuid())
+  employeeId  String
+  employee    Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date        DateTime         @db.Date
+  clockIn     DateTime?
+  clockOut    DateTime?
+  status      AttendanceStatus @default(PRESENT)
+  workHours   Decimal?         @db.Decimal(5, 2)
+  overtime    Decimal?         @db.Decimal(5, 2)
+  notes       String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([employeeId, date])
+  @@index([employeeId])
+  @@index([date])
+}
+
+model LeaveType {
+  id            String         @id @default(cuid())
+  name          String         @unique
+  description   String?
+  daysPerYear   Int            @default(0)
+  isPaid        Boolean        @default(true)
+  isActive      Boolean        @default(true)
+  carryForward  Boolean        @default(false)
+  maxCarryDays  Int            @default(0)
+  leaveRequests LeaveRequest[]
+  leaveBalances LeaveBalance[]
+  leavePolicies LeavePolicy[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+// Country-specific Leave Policies
+model LeavePolicy {
+  id            String      @id @default(cuid())
+  branchId      String
+  branch        Branch      @relation(fields: [branchId], references: [id])
+  leaveTypeId   String
+  leaveType     LeaveType   @relation(fields: [leaveTypeId], references: [id])
+  daysPerYear   Int         @default(0)
+  carryForward  Boolean     @default(false)
+  maxCarryDays  Int         @default(0)
+  isPaid        Boolean     @default(true)
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([branchId, leaveTypeId])
+  @@index([branchId])
+}
+
+model LeaveRequest {
+  id                    String             @id @default(cuid())
+  employeeId            String
+  employee              Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveTypeId           String
+  leaveType             LeaveType          @relation(fields: [leaveTypeId], references: [id])
+  startDate             DateTime           @db.Date
+  endDate               DateTime           @db.Date
+  totalDays             Int
+  reason                String?
+  status                LeaveRequestStatus @default(PENDING)
+
+  // Team Leader Approval
+  teamLeaderStatus      ApprovalStatus     @default(PENDING)
+  teamLeaderApprovedBy  String?
+  teamLeaderApprovedAt  DateTime?
+  teamLeaderRemarks     String?
+
+  // Manager Approval
+  managerStatus         ApprovalStatus     @default(PENDING)
+  managerApprovedBy     String?
+  managerApprovedAt     DateTime?
+  managerRemarks        String?
+
+  // HR Approval (Final)
+  hrStatus              ApprovalStatus     @default(PENDING)
+  hrApprovedBy          String?
+  hrApprovedAt          DateTime?
+  hrRemarks             String?
+
+  rejectedReason        String?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  @@index([employeeId])
+  @@index([leaveTypeId])
+  @@index([status])
+}
+
+model LeaveBalance {
+  id          String    @id @default(cuid())
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveTypeId String
+  leaveType   LeaveType @relation(fields: [leaveTypeId], references: [id])
+  year        Int
+  totalDays   Int       @default(0)
+  usedDays    Int       @default(0)
+  carriedDays Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([employeeId, leaveTypeId, year])
+  @@index([employeeId])
+  @@index([year])
+}
+
+// Payroll Management
+model Payslip {
+  id                String        @id @default(cuid())
+  employeeId        String
+  employee          Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  month             Int           // 1-12
+  year              Int
+  country           CountryCode   @default(UAE)
+  currency          Currency      @default(AED)
+
+  // Common Earnings
+  basicSalary       Decimal       @db.Decimal(15, 2)
+  overtimePay       Decimal       @default(0) @db.Decimal(15, 2)
+  bonus             Decimal       @default(0) @db.Decimal(15, 2)
+  grossEarnings     Decimal       @db.Decimal(15, 2)
+
+  // UAE Allowances
+  housingAllowance  Decimal       @default(0) @db.Decimal(15, 2)
+  transportAllowance Decimal      @default(0) @db.Decimal(15, 2)
+  foodAllowance     Decimal       @default(0) @db.Decimal(15, 2)
+  phoneAllowance    Decimal       @default(0) @db.Decimal(15, 2)
+  otherAllowance    Decimal       @default(0) @db.Decimal(15, 2)
+
+  // India Allowances
+  hra               Decimal       @default(0) @db.Decimal(15, 2)
+  conveyanceAllowance Decimal     @default(0) @db.Decimal(15, 2)
+  medicalAllowance  Decimal       @default(0) @db.Decimal(15, 2)
+  specialAllowance  Decimal       @default(0) @db.Decimal(15, 2)
+  lta               Decimal       @default(0) @db.Decimal(15, 2)
+
+  // Common Deductions
+  leaveDeduction    Decimal       @default(0) @db.Decimal(15, 2)
+  loanDeduction     Decimal       @default(0) @db.Decimal(15, 2)
+  advanceDeduction  Decimal       @default(0) @db.Decimal(15, 2)
+  otherDeduction    Decimal       @default(0) @db.Decimal(15, 2)
+
+  // India Statutory Deductions
+  pfEmployee        Decimal       @default(0) @db.Decimal(15, 2)  // 12% of basic
+  pfEmployer        Decimal       @default(0) @db.Decimal(15, 2)  // 12% of basic
+  esiEmployee       Decimal       @default(0) @db.Decimal(15, 2)  // 0.75% if gross < 21000
+  esiEmployer       Decimal       @default(0) @db.Decimal(15, 2)  // 3.25% if gross < 21000
+  professionalTax   Decimal       @default(0) @db.Decimal(15, 2)  // State-specific
+  tds               Decimal       @default(0) @db.Decimal(15, 2)  // Income Tax
+
+  totalDeductions   Decimal       @default(0) @db.Decimal(15, 2)
+
+  // Net Pay
+  netSalary         Decimal       @db.Decimal(15, 2)
+
+  // UAE WPS
+  wpsTransactionId  String?
+  wpsStatus         WPSStatus     @default(PENDING)
+  wpsPaidAt         DateTime?
+
+  // Status
+  status            PayslipStatus @default(DRAFT)
+  paidAt            DateTime?
+  notes             String?
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@unique([employeeId, month, year])
+  @@index([employeeId])
+  @@index([month, year])
+  @@index([status])
+  @@index([country])
+}
+
+// Final Settlement (UAE & India Compliant)
+model FinalSettlement {
+  id                    String              @id @default(cuid())
+  employeeId            String
+  employee              Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  settlementNumber      String              @unique
+  country               CountryCode         @default(UAE)
+  currency              Currency            @default(AED)
+
+  // Employment Period
+  joiningDate           DateTime
+  lastWorkingDate       DateTime
+  totalServiceYears     Decimal             @db.Decimal(5, 2)
+  totalServiceMonths    Int
+  totalServiceDays      Int
+
+  // Salary Details
+  basicSalary           Decimal             @db.Decimal(15, 2)
+  totalSalary           Decimal             @db.Decimal(15, 2)
+
+  // Gratuity Calculation (UAE Labor Law / India Gratuity Act)
+  gratuityEligible      Boolean             @default(false)  // UAE: 1yr, India: 5yrs
+  gratuityDays          Decimal             @db.Decimal(10, 2)  // Calculated days
+  gratuityAmount        Decimal             @db.Decimal(15, 2)
+
+  // Leave Encashment
+  pendingLeaveDays      Int                 @default(0)
+  leaveEncashment       Decimal             @default(0) @db.Decimal(15, 2)
+
+  // Notice Period
+  noticePeriodDays      Int                 @default(0)
+  noticePeriodServed    Int                 @default(0)
+  noticePeriodPayable   Decimal             @default(0) @db.Decimal(15, 2)
+  noticePeriodDeduction Decimal             @default(0) @db.Decimal(15, 2)
+
+  // Other Payments
+  pendingSalary         Decimal             @default(0) @db.Decimal(15, 2)
+  airfareAllowance      Decimal             @default(0) @db.Decimal(15, 2)  // UAE specific
+  bonusOrIncentive      Decimal             @default(0) @db.Decimal(15, 2)
+  otherPayments         Decimal             @default(0) @db.Decimal(15, 2)
+
+  // India PF Settlement
+  pfBalance             Decimal             @default(0) @db.Decimal(15, 2)  // Total PF balance
+
+  // Deductions
+  loanBalance           Decimal             @default(0) @db.Decimal(15, 2)
+  advanceBalance        Decimal             @default(0) @db.Decimal(15, 2)
+  otherDeductions       Decimal             @default(0) @db.Decimal(15, 2)
+
+  // Totals
+  totalEarnings         Decimal             @db.Decimal(15, 2)
+  totalDeductions       Decimal             @db.Decimal(15, 2)
+  netSettlement         Decimal             @db.Decimal(15, 2)
+
+  // Status & Approval
+  status                SettlementStatus    @default(DRAFT)
+  preparedBy            String?
+  preparedAt            DateTime?
+  approvedBy            String?
+  approvedAt            DateTime?
+  paidAt                DateTime?
+
+  // Documents
+  remarks               String?
+
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([country])
 }
 
 model CompanyProfile {
-  id            String   @id @default(cuid())
-  companyName   String
-  address       String?
-  phone         String?
-  email         String?
-  website       String?
-  logo          String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id              String   @id @default(cuid())
+  companyName     String
+  companyNameAr   String?  // Arabic name
+  tradeLicense    String?
+  licenseExpiry   DateTime?
+  address         String?
+  addressAr       String?
+  poBox           String?
+  landline        String?
+  mobile          String?
+  email           String?
+  website         String?
+  logo            String?
+  contactPerson   String?
+  // UAE Specific
+  trn             String?  // Tax Registration Number
+  laborOfficeCode String?
+  molEstablishmentId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Company Policies & Documents
+model CompanyDocument {
+  id          String       @id @default(cuid())
+  title       String
+  description String?
+  category    DocCategory
+  content     String?      @db.Text
+  fileUrl     String?
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([category])
+}
+
+// Letter Templates (Offer Letter, Experience Letter, etc.)
+model LetterTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  content     String   @db.Text
+  variables   String?  // JSON array of variable names like ["employeeName", "designation"]
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Employee Documents (ID, Certificates, Contracts)
+model EmployeeDocument {
+  id          String          @id @default(cuid())
+  employeeId  String
+  employee    Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  title       String
+  docType     EmployeeDocType
+  fileUrl     String?
+  expiryDate  DateTime?
+  issueDate   DateTime?
+  documentNo  String?
+  notes       String?
+  isVerified  Boolean         @default(false)
+  verifiedBy  String?
+  verifiedAt  DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([employeeId])
+  @@index([docType])
+  @@index([expiryDate])
+}
+
+// Enums
+enum DocCategory {
+  POLICY
+  HANDBOOK
+  GUIDELINE
+  FORM
+  OTHER
+}
+
+enum EmployeeDocType {
+  EMIRATES_ID
+  PASSPORT
+  VISA
+  LABOR_CARD
+  MEDICAL_INSURANCE
+  EDUCATIONAL_CERTIFICATE
+  EXPERIENCE_CERTIFICATE
+  CONTRACT
+  OFFER_LETTER
+  NOC
+  BANK_LETTER
+  PHOTO
+  OTHER
 }
 
 enum Role {
+  SUPER_ADMIN   // Hidden system role
+  DEVELOPER     // Hidden developer role
   ADMIN
   USER
+  TEAM_LEADER
+  MANAGER
+  HR
 }
 
 enum Gender {
@@ -86,9 +547,108 @@ enum Gender {
   OTHER
 }
 
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
+}
+
+enum VisaStatus {
+  VALID
+  EXPIRED
+  IN_PROCESS
+  CANCELLED
+  NOT_APPLICABLE
+}
+
+enum ContractType {
+  LIMITED
+  UNLIMITED
+  PART_TIME
+  FREELANCE
+}
+
 enum EmployeeStatus {
   ACTIVE
   INACTIVE
+  PROBATION
   TERMINATED
+  RESIGNED
+  ABSCONDING
   ON_LEAVE
+}
+
+enum OnboardingStatus {
+  PENDING
+  DOCUMENTS_PENDING
+  VISA_PROCESSING
+  COMPLETED
+}
+
+enum TerminationType {
+  RESIGNATION
+  TERMINATION
+  END_OF_CONTRACT
+  MUTUAL_AGREEMENT
+  ABSCONDING
+  DEATH
+  RETIREMENT
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+  ON_LEAVE
+  HOLIDAY
+  WEEKEND
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum LeaveRequestStatus {
+  PENDING
+  TL_APPROVED
+  MANAGER_APPROVED
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum PayslipStatus {
+  DRAFT
+  APPROVED
+  PAID
+  CANCELLED
+}
+
+enum WPSStatus {
+  PENDING
+  SUBMITTED
+  PROCESSED
+  FAILED
+}
+
+enum SettlementStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  PAID
+  CANCELLED
+}
+
+enum CountryCode {
+  UAE
+  IND
+}
+
+enum Currency {
+  AED
+  INR
 }

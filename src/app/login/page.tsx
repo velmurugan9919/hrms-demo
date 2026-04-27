@@ -32,7 +32,15 @@ export default function LoginPage() {
             if (result?.error) {
                 setError('Invalid email or password')
             } else {
-                router.push('/employees')
+                // Check user role and redirect accordingly
+                const userRes = await fetch('/api/auth/me')
+                const userData = await userRes.json()
+
+                if (userData.role && ['ADMIN', 'HR', 'MANAGER', 'TEAM_LEADER'].includes(userData.role)) {
+                    router.push('/dashboard')
+                } else {
+                    router.push('/portal')
+                }
                 router.refresh()
             }
         } catch (err) {
@@ -88,9 +96,12 @@ export default function LoginPage() {
                             {loading ? 'Signing in...' : 'Sign In'}
                         </Button>
                     </form>
-                    <div className="mt-4 text-center text-sm text-muted-foreground">
-                        <p>Default credentials:</p>
-                        <p>admin@hrms.com / admin123</p>
+                    <div className="mt-6 space-y-3 text-center text-sm text-muted-foreground border-t pt-4">
+                        <p className="font-medium text-foreground">Login Information:</p>
+                        <div className="space-y-1">
+                            <p><strong>Admin:</strong> admin@hrms.com / admin123</p>
+                            <p><strong>Employee:</strong> Use your email & Employee ID</p>
+                        </div>
                     </div>
                 </CardContent>
             </Card>

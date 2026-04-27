@@ -109,9 +109,14 @@ export default function EmployeesPage() {
         try {
             const res = await fetch('/api/employees')
             const data = await res.json()
-            setEmployees(data)
+            if (Array.isArray(data)) {
+                setEmployees(data)
+            } else {
+                setEmployees([])
+            }
         } catch (error) {
             toast.error('Failed to fetch employees')
+            setEmployees([])
         } finally {
             setLoading(false)
         }
@@ -121,9 +126,14 @@ export default function EmployeesPage() {
         try {
             const res = await fetch('/api/departments')
             const data = await res.json()
-            setDepartments(data)
+            if (Array.isArray(data)) {
+                setDepartments(data)
+            } else {
+                setDepartments([])
+            }
         } catch (error) {
             console.error('Failed to fetch departments')
+            setDepartments([])
         }
     }
 
@@ -131,9 +141,14 @@ export default function EmployeesPage() {
         try {
             const res = await fetch('/api/designations')
             const data = await res.json()
-            setDesignations(data)
+            if (Array.isArray(data)) {
+                setDesignations(data)
+            } else {
+                setDesignations([])
+            }
         } catch (error) {
             console.error('Failed to fetch designations')
+            setDesignations([])
         }
     }
 

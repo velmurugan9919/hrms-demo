@@ -55,6 +55,25 @@ async function main() {
     }
     console.log('Designations created')
 
+    // Create leave types
+    const leaveTypes = [
+        { name: 'Annual Leave', description: 'Yearly vacation leave', daysPerYear: 21, isPaid: true },
+        { name: 'Sick Leave', description: 'Medical/health related leave', daysPerYear: 10, isPaid: true },
+        { name: 'Casual Leave', description: 'Personal/emergency leave', daysPerYear: 5, isPaid: true },
+        { name: 'Maternity Leave', description: 'Leave for new mothers', daysPerYear: 45, isPaid: true },
+        { name: 'Paternity Leave', description: 'Leave for new fathers', daysPerYear: 5, isPaid: true },
+        { name: 'Unpaid Leave', description: 'Leave without pay', daysPerYear: 30, isPaid: false },
+    ]
+
+    for (const lt of leaveTypes) {
+        await prisma.leaveType.upsert({
+            where: { name: lt.name },
+            update: {},
+            create: lt
+        })
+    }
+    console.log('Leave types created')
+
     console.log('Seed completed successfully!')
 }
 
